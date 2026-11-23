@@ -1,0 +1,39 @@
+# Code owners — GitHub requests reviews from these owners automatically.
+# Enforce it with branch protection on `develop` and `main`:
+#   Settings → Branches → Require a pull request → Require review from Code Owners.
+#
+# TODO: replace FRONTEND_DEV_HANDLE below with the frontend developer's GitHub
+# username and uncomment those lines so shared-contract changes need both reviews.
+
+# ── Backend (backend developer) ────────────────────────────────────────────
+/prisma/                    @qnasir57575
+/src/app/api/               @qnasir57575
+/src/server/                @qnasir57575
+/docker/                    @qnasir57575
+/docker-compose.yml         @qnasir57575
+/.github/                   @qnasir57575
+/next.config.ts             @qnasir57575
+/package.json               @qnasir57575
+/package-lock.json          @qnasir57575
+/CLAUDE.md                  @qnasir57575
+
+# ── Shared API contract (both developers) ──────────────────────────────────
+/src/contracts/             @qnasir57575
+/src/types/api.ts           @qnasir57575
+/src/lib/api-client.ts      @qnasir57575
+/src/lib/api/               @qnasir57575
+/src/mocks/                 @qnasir57575
+/docs/API_DOCUMENTATION.md  @qnasir57575
+/docs/openapi.yaml          @qnasir57575
+/scripts/                   @qnasir57575
+# /src/contracts/             @qnasir57575 @FRONTEND_DEV_HANDLE
+# /src/types/api.ts           @qnasir57575 @FRONTEND_DEV_HANDLE
+# /src/lib/api-client.ts      @qnasir57575 @FRONTEND_DEV_HANDLE
+# /src/lib/api/               @qnasir57575 @FRONTEND_DEV_HANDLE
+# /src/mocks/                 @qnasir57575 @FRONTEND_DEV_HANDLE
+# /docs/API_DOCUMENTATION.md  @qnasir57575 @FRONTEND_DEV_HANDLE
+# /docs/openapi.yaml          @qnasir57575 @FRONTEND_DEV_HANDLE
+
+# ── Public frontend (frontend developer) ───────────────────────────────────
+# /src/components/            @FRONTEND_DEV_HANDLE
+# /docs/FRONTEND_HANDOFF.md   @FRONTEND_DEV_HANDLE @qnasir57575
