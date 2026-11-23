@@ -37,12 +37,15 @@ export function SearchBox({
   size = "md",
   className,
   label: inputLabel = "Search the portal",
+  formLabel = "Search the portal",
   onNavigate,
 }: {
   defaultValue?: string;
   size?: "md" | "lg";
   className?: string;
   label?: string;
+  /** Accessible name of the search landmark; must be unique on the page. */
+  formLabel?: string;
   /** Called after navigating (e.g. to close the mobile menu). */
   onNavigate?: () => void;
 }) {
@@ -144,7 +147,7 @@ export function SearchBox({
   const activeId = expanded && active >= 0 ? `${listId}-${active}` : undefined;
 
   return (
-    <form role="search" onSubmit={submit} className={cn("relative", className)}>
+    <form role="search" aria-label={formLabel} onSubmit={submit} className={cn("relative", className)}>
       <label htmlFor={inputId} className="sr-only">
         {inputLabel}
       </label>
@@ -179,7 +182,7 @@ export function SearchBox({
           onBlur={() => setOpen(false)}
           className={cn(
             "w-full rounded-md border border-line-strong bg-white pr-12 text-ink placeholder:text-ink-muted",
-            "focus:border-glacier-700 focus:outline-none focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-glacier-300",
+            "focus:border-glacier-700",
             "[&::-webkit-search-cancel-button]:hidden",
             size === "lg" ? "h-14 pl-11 text-lg" : "h-10 pl-9 text-[0.9375rem]",
           )}
