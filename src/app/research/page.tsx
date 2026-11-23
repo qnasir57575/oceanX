@@ -17,7 +17,7 @@ import { ActiveFilters, FiltersSkeleton, ListLayout, ResultsToolbar, type Active
 import { PublicationList } from "@/components/content/publication-item";
 import { countActiveFilters, parseQuery, toURLSearchParams, type RawSearchParams } from "@/lib/ui/query";
 import { enumOptions, sortOptions } from "@/lib/ui/options";
-import { categoryName, loadCategoryOptions } from "@/lib/ui/data";
+import { categoryName, expeditionTitle, loadCategoryOptions } from "@/lib/ui/data";
 import { label, PUBLICATION_TYPE_LABELS, REGION_LABELS } from "@/lib/format/labels";
 
 export const metadata: Metadata = {
@@ -108,7 +108,7 @@ async function Results({ sp, query }: { sp: RawSearchParams; query: ListPublicat
     query.region && { key: "region", label: label(REGION_LABELS, query.region) },
     query.category && { key: "category", label: `Topic: ${await categoryName(query.category)}` },
     query.keyword && { key: "keyword", label: `Keyword: ${query.keyword}` },
-    query.expeditionId && { key: "expeditionId", label: "From one expedition" },
+    query.expeditionId && { key: "expeditionId", label: `Expedition: ${(await expeditionTitle(query.expeditionId)) ?? "selected expedition"}` },
     query.year && { key: "year", label: `Year ${query.year}` },
     query.yearFrom && { key: "yearFrom", label: `From ${query.yearFrom}` },
     query.yearTo && { key: "yearTo", label: `To ${query.yearTo}` },
