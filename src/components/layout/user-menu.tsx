@@ -19,7 +19,7 @@ export function useLogout() {
     setPending(true);
     try {
       await logout();
-      setUser(null);
+      setUser(null, { loggedOut: true });
     } catch {
       await refresh();
     } finally {
