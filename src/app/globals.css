@@ -1,26 +1,206 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * OceanX design tokens.
+ * Colours are checked for WCAG AA: every text/background pairing used in the
+ * UI is ≥ 4.5:1 (most ≥ 6:1). Interactive borders use `--color-line-strong`
+ * (≥ 3:1 against white); `--color-line` is decorative only.
+ */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-source-serif), ui-serif, Georgia, serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Text */
+  --color-ink: #0b1f33;
+  --color-ink-muted: #4a5b6c;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* Surfaces and lines */
+  --color-snow: #f5f8fa;
+  --color-surface: #ffffff;
+  --color-line: #d7e1e8;
+  --color-line-strong: #6e8596;
+
+  /* Brand: deep polar navy */
+  --color-polar-50: #eef4f8;
+  --color-polar-100: #dbe7ef;
+  --color-polar-200: #c4d9e6;
+  --color-polar-700: #134f73;
+  --color-polar-800: #0f4566;
+  --color-polar-900: #0b3d5c;
+  --color-polar-950: #072a40;
+
+  /* Accent: glacier blue (links, focus, primary actions) */
+  --color-glacier-50: #e8f4f8;
+  --color-glacier-100: #cfe8f1;
+  --color-glacier-300: #7fd3f0;
+  --color-glacier-700: #0e6a8a;
+  --color-glacier-800: #0b566f;
+
+  /* Status */
+  --color-success: #17694a;
+  --color-success-bg: #e7f4ee;
+  --color-warning: #855000;
+  --color-warning-bg: #fdf1dc;
+  --color-danger: #a8201a;
+  --color-danger-bg: #fdecea;
+
+  /* Region tints (always paired with a text label) */
+  --color-region-antarctica: #0b566f;
+  --color-region-antarctica-bg: #e8f4f8;
+  --color-region-arctic: #3b3f8f;
+  --color-region-arctic-bg: #eceefb;
+  --color-region-himalaya: #5a4a36;
+  --color-region-himalaya-bg: #f3efe8;
+  --color-region-ocean: #0f5f5a;
+  --color-region-ocean-bg: #e3f3f1;
+
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  @keyframes shimmer {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.55;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    background: var(--color-snow);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-serif);
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-glacier-700);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* On dark (polar) backgrounds use a light focus ring. */
+  .on-dark :focus-visible {
+    outline-color: var(--color-glacier-300);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Subtle topographic contour texture for page headers and the hero. */
+  .bg-contours {
+    background-color: var(--color-polar-900);
+    background-image:
+      radial-gradient(ellipse 60% 80% at 85% 20%, rgb(127 211 240 / 0.14), transparent 60%),
+      repeating-radial-gradient(
+        ellipse 120% 90% at 90% -10%,
+        transparent 0 22px,
+        rgb(196 217 230 / 0.09) 22px 23px
+      );
+  }
+
+  /* Long-form Markdown rendered from the API (see components/ui/markdown.tsx). */
+  .prose {
+    color: var(--color-ink);
+    line-height: 1.75;
+    max-width: 72ch;
+  }
+  .prose > * + * {
+    margin-top: 1em;
+  }
+  .prose h2,
+  .prose h3,
+  .prose h4 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 1.75em;
+  }
+  .prose h2 {
+    font-size: 1.5rem;
+  }
+  .prose h3 {
+    font-size: 1.25rem;
+  }
+  .prose h4 {
+    font-size: 1.0625rem;
+  }
+  .prose a {
+    color: var(--color-glacier-700);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .prose a:hover {
+    color: var(--color-glacier-800);
+  }
+  .prose ul {
+    list-style: disc;
+    padding-left: 1.5em;
+  }
+  .prose ol {
+    list-style: decimal;
+    padding-left: 1.5em;
+  }
+  .prose li + li {
+    margin-top: 0.35em;
+  }
+  .prose blockquote {
+    border-left: 3px solid var(--color-line);
+    padding-left: 1em;
+    color: var(--color-ink-muted);
+  }
+  .prose code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--color-polar-50);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+  }
+  .prose pre {
+    background: var(--color-polar-50);
+    padding: 1em;
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+  .prose pre code {
+    background: none;
+    padding: 0;
+  }
+  .prose hr {
+    border-color: var(--color-line);
+  }
+  .prose table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+  }
+  .prose th,
+  .prose td {
+    border: 1px solid var(--color-line);
+    padding: 0.5em 0.75em;
+    text-align: left;
+  }
 }
