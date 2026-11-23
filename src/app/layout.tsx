@@ -11,6 +11,7 @@ const sourceSerif = Source_Serif_4({ variable: "--font-source-serif", subsets: [
 const plexMono = IBM_Plex_Mono({ variable: "--font-plex-mono", subsets: ["latin"], weight: ["400", "500"], display: "swap" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.APP_ORIGIN || "http://localhost:3000"),
   title: { default: `${SITE_NAME} — ${SITE_TAGLINE}`, template: `%s · ${SITE_NAME}` },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
