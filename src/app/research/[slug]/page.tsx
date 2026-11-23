@@ -89,7 +89,7 @@ async function PublicationDetail({ params }: { params: Promise<{ slug: string }>
                   Plain-language summary
                 </h2>
                 <p className="mb-4 text-sm text-ink-muted">Written for {label(AUDIENCE_LABELS, p.aiSummary.audience).toLowerCase()}.</p>
-                <Markdown>{p.aiSummary.text}</Markdown>
+                <Markdown baseLevel={3}>{p.aiSummary.text}</Markdown>
                 <AIDisclaimer text={p.aiSummary.disclaimer} model={p.aiSummary.model} reviewedAt={p.aiSummary.reviewedAt} className="mt-5" />
               </section>
             ) : null}

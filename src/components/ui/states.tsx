@@ -9,6 +9,7 @@ export function EmptyState({
   action,
   className,
   compact = false,
+  headingLevel: Heading = "h2",
 }: {
   title: string;
   description?: React.ReactNode;
@@ -16,6 +17,7 @@ export function EmptyState({
   action?: React.ReactNode;
   className?: string;
   compact?: boolean;
+  headingLevel?: "h1" | "h2" | "h3";
 }) {
   return (
     <div
@@ -28,7 +30,7 @@ export function EmptyState({
       <span className="mb-4 inline-flex size-12 items-center justify-center rounded-full bg-polar-50 text-polar-800">
         <Icon name={icon} size={24} />
       </span>
-      <h3 className="font-serif text-lg font-semibold text-ink">{title}</h3>
+      <Heading className="font-serif text-lg font-semibold text-ink">{title}</Heading>
       {description ? <p className="mt-2 max-w-md text-ink-muted">{description}</p> : null}
       {action ? <div className="mt-6 flex flex-wrap justify-center gap-3">{action}</div> : null}
     </div>
@@ -44,7 +46,7 @@ export function ErrorState({
   action,
   className,
   compact = false,
-  headingLevel: Heading = "h3",
+  headingLevel: Heading = "h2",
 }: {
   title: string;
   message: string;
