@@ -1,0 +1,511 @@
+/** File upload/download, content submission & approval, AI content, public outreach. */
+import { E, IdOrSlugParams, IdParams, PAGES, defineEndpoint, writeErrors } from "../endpoint";
+import { DeletedSchema, paginatedResponse, successResponse } from "../primitives";
+import { CONTRIBUTOR_ROLES, STAFF_ROLES } from "../schemas/roles";
+import { CreateUploadRequestSchema, FileAssetSchema, UploadContentResultSchema, UploadTicketSchema } from "../schemas/files";
+import {
+  CreateSubmissionRequestSchema,
+  ListSubmissionsQuerySchema,
+  ReviewSubmissionRequestSchema,
+  SubmissionSchema,
+} from "../schemas/submissions";
+import {
+  AIOutreachContentSchema,
+  GenerateOutreachRequestSchema,
+  GenerateSummaryRequestSchema,
+  ListAIContentQuerySchema,
+  ListOutreachQuerySchema,
+  OutreachSummarySchema,
+  UpdateAIContentRequestSchema,
+} from "../schemas/ai";
+
+const UPLOAD_ROLES = ["MEMBER", "RESEARCHER", "EDITOR", "ADMIN"] as const;
+
+export const fileEndpoints = {
+  createUpload: defineEndpoint({
+    operationId: "createUpload",
+    method: "POST",
+    path: "/uploads",
+    tag: "Files",
+    summary: "Start a file upload",
+    description:
+      "Step 1 of 3. Validates the file metadata against the purpose limits and returns a short-lived upload ticket. " +
+      "Then PUT the raw bytes to `uploadUrl` (step 2) and call `POST /uploads/{id}/complete` (step 3). " +
+      "MEMBERs may only upload `AVATAR` files.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: UPLOAD_ROLES,
+    rateLimit: { limit: 30, windowSeconds: 3600, scope: "user" },
+    request: { body: CreateUploadRequestSchema },
+    response: { status: 201, description: "Upload ticket.", schema: successResponse(UploadTicketSchema) },
+    errors: {
+      ...writeErrors,
+      403: "Role may not upload this purpose (e.g. MEMBER uploading a dataset), or disallowed Origin.",
+      413: "`sizeBytes` exceeds the limit for this purpose (`details.maxSizeBytes`).",
+      422: "Invalid body, or `contentType` not allowed for this purpose.",
+      429: E.rateLimited,
+    },
+    frontend: {
+      pages: [PAGES.adminContent, PAGES.contributor, PAGES.account],
+      owner: "backend-admin",
+      when: "When the user picks a file in an upload field.",
+      caching: "Never cache.",
+      notes: [
+        "Use the `uploadFile(file, { purpose, onProgress })` helper in src/lib/api/files.ts — it performs all three steps.",
+        "Uploads use a signed URL / raw PUT, NOT multipart/form-data.",
+      ],
+    },
+    client: { module: "files", fn: "createUpload" },
+    example: { body: { fileName: "demo-figure.png", contentType: "image/png", sizeBytes: 482113, purpose: "COVER_IMAGE" } },
+  }),
+
+  putUploadContent: defineEndpoint({
+    operationId: "putUploadContent",
+    method: "PUT",
+    path: "/uploads/{id}/content",
+    tag: "Files",
+    summary: "Upload file bytes (local storage driver)",
+    description:
+      "Step 2 when `STORAGE_DRIVER=local` (development). Body is the raw file (`application/octet-stream` or the declared " +
+      "content type). With S3-compatible storage, `uploadUrl` points to the object store instead and this endpoint is not used.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: UPLOAD_ROLES,
+    request: { params: IdParams, bodyContentType: "application/octet-stream" },
+    response: { status: 200, description: "Bytes stored.", schema: successResponse(UploadContentResultSchema) },
+    errors: {
+      401: E.unauthenticated,
+      403: "Ticket belongs to another user.",
+      404: "Upload ticket not found or expired.",
+      409: "Upload already completed.",
+      413: "Body larger than the declared `sizeBytes`.",
+      500: E.server,
+    },
+    frontend: {
+      pages: [PAGES.adminContent, PAGES.contributor],
+      owner: "backend-admin",
+      when: "Called by `uploadFile()` — never construct this URL yourself; always use `uploadUrl` from the ticket.",
+      caching: "Never cache.",
+    },
+    client: { module: "files", fn: "uploadFileContent" },
+    example: { params: { id: "file_demo_upload" } },
+  }),
+
+  completeUpload: defineEndpoint({
+    operationId: "completeUpload",
+    method: "POST",
+    path: "/uploads/{id}/complete",
+    tag: "Files",
+    summary: "Complete a file upload",
+    description: "Step 3. Verifies size (and checksum if provided) and marks the file READY. Returns the file record to attach to content.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: UPLOAD_ROLES,
+    request: { params: IdParams },
+    response: { status: 200, description: "File is READY.", schema: successResponse(FileAssetSchema) },
+    errors: {
+      401: E.unauthenticated,
+      403: "Ticket belongs to another user.",
+      404: "Upload not found or expired.",
+      409: "Bytes not uploaded yet, or already completed.",
+      422: "Uploaded size or checksum does not match the ticket.",
+      500: E.server,
+    },
+    frontend: {
+      pages: [PAGES.adminContent, PAGES.contributor, PAGES.account],
+      owner: "backend-admin",
+      when: "Called by `uploadFile()` after the PUT succeeds.",
+      caching: "Never cache.",
+    },
+    client: { module: "files", fn: "completeUpload" },
+    example: { params: { id: "file_demo_upload" } },
+  }),
+
+  getFile: defineEndpoint({
+    operationId: "getFile",
+    method: "GET",
+    path: "/files/{id}",
+    tag: "Files",
+    summary: "Get file metadata",
+    description: "File metadata. OPEN files are public; REGISTERED require login; RESTRICTED require owner or EDITOR/ADMIN.",
+    status: "PLANNED",
+    auth: "OPTIONAL",
+    request: { params: IdParams },
+    response: { status: 200, description: "File metadata.", schema: successResponse(FileAssetSchema) },
+    errors: {
+      401: "REGISTERED file and not logged in.",
+      403: "RESTRICTED file and caller is not owner/staff.",
+      404: "File not found.",
+      500: E.server,
+    },
+    frontend: {
+      pages: [PAGES.datasetDetail, PAGES.adminContent],
+      owner: "public-frontend",
+      when: "Rarely needed — detail endpoints already embed `FileRef`s.",
+      caching: "Cache only OPEN files.",
+    },
+    client: { module: "files", fn: "getFile" },
+    example: { params: { id: "file_demo_01" } },
+  }),
+
+  downloadFile: defineEndpoint({
+    operationId: "downloadFile",
+    method: "GET",
+    path: "/files/{id}/download",
+    tag: "Files",
+    summary: "Download a file",
+    description:
+      "Enforces the access level, increments the download counter, then responds with `302` to a short-lived signed URL " +
+      "(object storage) or streams the bytes directly (local driver, `200`). Errors are JSON.",
+    status: "PLANNED",
+    auth: "OPTIONAL",
+    rateLimit: { limit: 120, windowSeconds: 3600, scope: "ip" },
+    request: { params: IdParams },
+    response: {
+      status: 302,
+      description: "Redirect to a signed download URL (`Location` header). Local driver: `200` with the file bytes.",
+      headers: { Location: "Signed URL, valid ~5 minutes.", "Content-Disposition": "`attachment; filename=\"…\"` (200 only)" },
+    },
+    errors: {
+      401: "REGISTERED file and not logged in.",
+      403: "RESTRICTED file and caller is not owner/staff.",
+      404: "File not found or not READY.",
+      429: E.rateLimited,
+      500: E.server,
+    },
+    frontend: {
+      pages: [PAGES.datasetDetail, PAGES.publicationDetail, PAGES.newsDetail],
+      owner: "public-frontend",
+      when: "Never fetch() this — render `downloadUrl` as a normal link (`<a href={file.downloadUrl} download>`).",
+      caching: "Never cache (signed URLs expire).",
+    },
+    client: { module: "files", fn: "getFileDownloadUrl" },
+    example: { params: { id: "file_demo_01" } },
+  }),
+
+  deleteFile: defineEndpoint({
+    operationId: "deleteFile",
+    method: "DELETE",
+    path: "/files/{id}",
+    tag: "Files",
+    summary: "Delete a file",
+    description: "Deletes a file that is not attached to published content. Owner, or ADMIN for any file.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: UPLOAD_ROLES,
+    request: { params: IdParams },
+    response: { status: 200, description: "Deleted.", schema: successResponse(DeletedSchema) },
+    errors: {
+      401: E.unauthenticated,
+      403: "Not the owner (and not ADMIN).",
+      404: "File not found.",
+      409: "File is attached to published content — detach it first.",
+      500: E.server,
+    },
+    frontend: { pages: [PAGES.adminContent], owner: "backend-admin", when: "When removing an attachment.", caching: "Never cache." },
+    client: { module: "files", fn: "deleteFile" },
+    example: { params: { id: "file_demo_90" } },
+  }),
+} as const;
+
+export const submissionEndpoints = {
+  createSubmission: defineEndpoint({
+    operationId: "createSubmission",
+    method: "POST",
+    path: "/submissions",
+    tag: "Submissions",
+    summary: "Submit content for review",
+    description:
+      "Moves a DRAFT or CHANGES_REQUESTED record to PENDING_REVIEW and opens a submission for EDITOR/ADMIN review. " +
+      "Only the record's owner (or staff) may submit.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: CONTRIBUTOR_ROLES,
+    request: { body: CreateSubmissionRequestSchema },
+    response: { status: 201, description: "Submission opened.", schema: successResponse(SubmissionSchema) },
+    errors: {
+      ...writeErrors,
+      403: "Not the owner of the record, or disallowed Origin.",
+      404: "Content record not found.",
+      409: "Already pending review, already published, or archived (`details.reason`).",
+    },
+    frontend: {
+      pages: [PAGES.contributor, PAGES.adminContent],
+      owner: "backend-admin",
+      when: "When the contributor clicks “Submit for review”.",
+      caching: "Never cache.",
+    },
+    client: { module: "submissions", fn: "createSubmission" },
+    example: { body: { contentType: "EXPEDITION", contentId: "exp_demo_09", message: "Ready for review." } },
+  }),
+
+  listSubmissions: defineEndpoint({
+    operationId: "listSubmissions",
+    method: "GET",
+    path: "/submissions",
+    tag: "Submissions",
+    summary: "List submissions (review queue)",
+    description: "EDITOR/ADMIN see all submissions; RESEARCHERs see only their own. Newest first.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: CONTRIBUTOR_ROLES,
+    request: { query: ListSubmissionsQuerySchema },
+    response: { status: 200, description: "Submissions.", schema: paginatedResponse(SubmissionSchema) },
+    errors: { 401: E.unauthenticated, 403: E.forbiddenRole, 422: E.invalidQuery, 500: E.server },
+    frontend: {
+      pages: [PAGES.adminReview, PAGES.contributor],
+      owner: "backend-admin",
+      when: "On queue load; default filter `status=PENDING` for reviewers.",
+      caching: "Never cache.",
+    },
+    client: { module: "submissions", fn: "getSubmissions" },
+    example: { query: { status: "PENDING", page: 1 } },
+  }),
+
+  getSubmission: defineEndpoint({
+    operationId: "getSubmission",
+    method: "GET",
+    path: "/submissions/{id}",
+    tag: "Submissions",
+    summary: "Get a submission",
+    description: "Submission with full review history.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: CONTRIBUTOR_ROLES,
+    request: { params: IdParams },
+    response: { status: 200, description: "Submission.", schema: successResponse(SubmissionSchema) },
+    errors: { 401: E.unauthenticated, 403: "Researcher viewing someone else's submission.", 404: "Submission not found.", 500: E.server },
+    frontend: { pages: [PAGES.adminReview, PAGES.contributor], owner: "backend-admin", when: "On detail load.", caching: "Never cache." },
+    client: { module: "submissions", fn: "getSubmission" },
+    example: { params: { id: "sub_demo_01" } },
+  }),
+
+  reviewSubmission: defineEndpoint({
+    operationId: "reviewSubmission",
+    method: "POST",
+    path: "/submissions/{id}/review",
+    tag: "Submissions",
+    summary: "Approve, reject or request changes",
+    description:
+      "APPROVE publishes the content (status PUBLISHED, `publishedAt` set). REJECT → REJECTED. REQUEST_CHANGES → CHANGES_REQUESTED " +
+      "(the owner can edit and resubmit). A comment is required unless approving. EDITORs cannot review their own submissions.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: STAFF_ROLES,
+    request: { params: IdParams, body: ReviewSubmissionRequestSchema },
+    response: { status: 200, description: "Updated submission.", schema: successResponse(SubmissionSchema) },
+    errors: {
+      ...writeErrors,
+      403: "Not EDITOR/ADMIN, or an EDITOR reviewing their own submission.",
+      404: "Submission not found.",
+      409: "Submission is not PENDING.",
+    },
+    frontend: { pages: [PAGES.adminReview], owner: "backend-admin", when: "On approve/reject/request-changes.", caching: "Never cache." },
+    client: { module: "submissions", fn: "reviewSubmission" },
+    example: { params: { id: "sub_demo_01" }, body: { decision: "APPROVE", comment: "Looks good." } },
+  }),
+
+  withdrawSubmission: defineEndpoint({
+    operationId: "withdrawSubmission",
+    method: "POST",
+    path: "/submissions/{id}/withdraw",
+    tag: "Submissions",
+    summary: "Withdraw a submission",
+    description: "The submitter withdraws a PENDING submission; the content returns to DRAFT.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: CONTRIBUTOR_ROLES,
+    request: { params: IdParams },
+    response: { status: 200, description: "Withdrawn submission.", schema: successResponse(SubmissionSchema) },
+    errors: {
+      401: E.unauthenticated,
+      403: "Only the submitter may withdraw.",
+      404: "Submission not found.",
+      409: "Submission is not PENDING.",
+      500: E.server,
+    },
+    frontend: { pages: [PAGES.contributor], owner: "backend-admin", when: "On “Withdraw”.", caching: "Never cache." },
+    client: { module: "submissions", fn: "withdrawSubmission" },
+    example: { params: { id: "sub_demo_02" } },
+  }),
+} as const;
+
+const AI_NOTES = [
+  "Generation can take 10–60 s: show progress and disable the button; pass an AbortSignal so the user can cancel.",
+  "The result is always a DRAFT. Show it in an editor for human review before publishing via `PATCH /ai/content/{id}`.",
+] as const;
+const AI_ERRORS = {
+  ...writeErrors,
+  404: "Source record not found or not PUBLISHED.",
+  429: "AI generation rate limit reached for your account.",
+  503: "AI provider not configured or temporarily unavailable.",
+} as const;
+
+export const aiEndpoints = {
+  generateResearchSummary: defineEndpoint({
+    operationId: "generateResearchSummary",
+    method: "POST",
+    path: "/ai/summaries",
+    tag: "AI",
+    summary: "Generate a plain-language research summary",
+    description:
+      "Drafts a plain-language summary of a PUBLISHED publication, dataset or expedition for a chosen audience. " +
+      "The model is grounded only in the source record's metadata/abstract and instructed not to add facts. " +
+      "Saved as a DRAFT `RESEARCH_SUMMARY` that an EDITOR must review before it appears on the public page.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: STAFF_ROLES,
+    rateLimit: { limit: 20, windowSeconds: 3600, scope: "user" },
+    request: { body: GenerateSummaryRequestSchema },
+    response: { status: 201, description: "Draft summary.", schema: successResponse(AIOutreachContentSchema) },
+    errors: AI_ERRORS,
+    frontend: { pages: [PAGES.adminAI], owner: "backend-admin", when: "On “Generate summary”.", caching: "Never cache.", notes: AI_NOTES },
+    client: { module: "ai", fn: "generateResearchSummary" },
+    example: { body: { sourceType: "PUBLICATION", sourceId: "pub_demo_01", audience: "STUDENTS", length: "SHORT" } },
+  }),
+
+  generateOutreachContent: defineEndpoint({
+    operationId: "generateOutreachContent",
+    method: "POST",
+    path: "/ai/outreach",
+    tag: "AI",
+    summary: "Generate outreach content",
+    description:
+      "Drafts outreach material (social post, newsletter, press release, explainer, quiz, FAQ) grounded in 1–5 PUBLISHED records. " +
+      "Saved as a DRAFT for human review.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: STAFF_ROLES,
+    rateLimit: { limit: 20, windowSeconds: 3600, scope: "user" },
+    request: { body: GenerateOutreachRequestSchema },
+    response: { status: 201, description: "Draft outreach content.", schema: successResponse(AIOutreachContentSchema) },
+    errors: AI_ERRORS,
+    frontend: { pages: [PAGES.adminAI], owner: "backend-admin", when: "On “Generate”.", caching: "Never cache.", notes: AI_NOTES },
+    client: { module: "ai", fn: "generateOutreachContent" },
+    example: {
+      body: { kind: "EXPLAINER", sources: [{ type: "EXPEDITION", id: "exp_demo_01" }], audience: "STUDENTS", maxWords: 250 },
+    },
+  }),
+
+  listAIContent: defineEndpoint({
+    operationId: "listAIContent",
+    method: "GET",
+    path: "/ai/content",
+    tag: "AI",
+    summary: "List AI-generated content",
+    description: "All AI drafts and published items for review and management.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: STAFF_ROLES,
+    request: { query: ListAIContentQuerySchema },
+    response: { status: 200, description: "AI content.", schema: paginatedResponse(AIOutreachContentSchema) },
+    errors: { 401: E.unauthenticated, 403: E.forbiddenRole, 422: E.invalidQuery, 500: E.server },
+    frontend: { pages: [PAGES.adminAI], owner: "backend-admin", when: "On AI Studio load / filter change.", caching: "Never cache." },
+    client: { module: "ai", fn: "getAIContentList" },
+    example: { query: { status: "DRAFT", page: 1 } },
+  }),
+
+  getAIContent: defineEndpoint({
+    operationId: "getAIContent",
+    method: "GET",
+    path: "/ai/content/{id}",
+    tag: "AI",
+    summary: "Get AI-generated content",
+    description: "A single AI item in any status.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: STAFF_ROLES,
+    request: { params: IdParams },
+    response: { status: 200, description: "AI content.", schema: successResponse(AIOutreachContentSchema) },
+    errors: { 401: E.unauthenticated, 403: E.forbiddenRole, 404: "Not found.", 500: E.server },
+    frontend: { pages: [PAGES.adminAI], owner: "backend-admin", when: "On review editor load.", caching: "Never cache." },
+    client: { module: "ai", fn: "getAIContent" },
+    example: { params: { id: "ai_demo_01" } },
+  }),
+
+  updateAIContent: defineEndpoint({
+    operationId: "updateAIContent",
+    method: "PATCH",
+    path: "/ai/content/{id}",
+    tag: "AI",
+    summary: "Edit, approve or reject AI content",
+    description:
+      "Edit the draft text and/or change status. Setting `PUBLISHED` records the reviewer and makes it public " +
+      "(research summaries appear on the source record's page as `aiSummary`).",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: STAFF_ROLES,
+    request: { params: IdParams, body: UpdateAIContentRequestSchema },
+    response: { status: 200, description: "Updated.", schema: successResponse(AIOutreachContentSchema) },
+    errors: { ...writeErrors, 404: "Not found." },
+    frontend: { pages: [PAGES.adminAI], owner: "backend-admin", when: "On save / approve / reject.", caching: "Never cache." },
+    client: { module: "ai", fn: "updateAIContent" },
+    example: { params: { id: "ai_demo_02" }, body: { status: "PUBLISHED" } },
+  }),
+
+  deleteAIContent: defineEndpoint({
+    operationId: "deleteAIContent",
+    method: "DELETE",
+    path: "/ai/content/{id}",
+    tag: "AI",
+    summary: "Delete AI content",
+    description: "Permanently deletes an AI item.",
+    status: "PLANNED",
+    auth: "REQUIRED",
+    roles: STAFF_ROLES,
+    request: { params: IdParams },
+    response: { status: 200, description: "Deleted.", schema: successResponse(DeletedSchema) },
+    errors: { 401: E.unauthenticated, 403: E.forbiddenRole, 404: "Not found.", 500: E.server },
+    frontend: { pages: [PAGES.adminAI], owner: "backend-admin", when: "After confirmation.", caching: "Never cache." },
+    client: { module: "ai", fn: "deleteAIContent" },
+    example: { params: { id: "ai_demo_04" } },
+  }),
+} as const;
+
+export const outreachEndpoints = {
+  listOutreach: defineEndpoint({
+    operationId: "listOutreach",
+    method: "GET",
+    path: "/outreach",
+    tag: "Outreach",
+    summary: "List published outreach content",
+    description: "Human-reviewed, AI-assisted explainers, quizzes, FAQs and summaries for the public Learn section.",
+    status: "IMPLEMENTED",
+    auth: "PUBLIC",
+    request: { query: ListOutreachQuerySchema },
+    response: { status: 200, description: "Published outreach items.", schema: paginatedResponse(OutreachSummarySchema) },
+    errors: { 422: E.invalidQuery, 500: E.server },
+    frontend: {
+      pages: [PAGES.learn, PAGES.home],
+      owner: "public-frontend",
+      when: "On Learn page load and filter/page change.",
+      caching: "Public, shareable data; up to ~5 min staleness is fine. See §3.8.",
+      notes: ["Show an “AI-assisted” badge on every item (`isAIGenerated` is always true)."],
+    },
+    client: { module: "outreach", fn: "getOutreachList" },
+    example: { query: { audience: "STUDENTS", page: 1 } },
+  }),
+
+  getOutreach: defineEndpoint({
+    operationId: "getOutreach",
+    method: "GET",
+    path: "/outreach/{id}",
+    tag: "Outreach",
+    summary: "Get published outreach content",
+    description: "A published outreach item by ID or slug, with its source records.",
+    status: "IMPLEMENTED",
+    auth: "PUBLIC",
+    request: { params: IdOrSlugParams },
+    response: { status: 200, description: "Outreach item.", schema: successResponse(AIOutreachContentSchema) },
+    errors: { 404: "Not found or not published.", 500: E.server },
+    frontend: {
+      pages: [PAGES.learnDetail],
+      owner: "public-frontend",
+      when: "On detail page load.",
+      caching: "Public, shareable data; up to ~5 min staleness is fine. See §3.8.",
+      notes: ["Render `body` as Markdown, show `disclaimer`, and link every entry in `sources`."],
+    },
+    client: { module: "outreach", fn: "getOutreachItem" },
+    example: { params: { id: "ai_demo_01" } },
+  }),
+} as const;

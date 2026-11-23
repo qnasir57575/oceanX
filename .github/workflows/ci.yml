@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, types, API drift, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: oceanx
+          POSTGRES_PASSWORD: oceanx_dev_password
+          POSTGRES_DB: oceanx_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U oceanx -d oceanx_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://oceanx:oceanx_dev_password@localhost:5434/oceanx_test?schema=public
+      TEST_DATABASE_URL: postgresql://oceanx:oceanx_dev_password@localhost:5434/oceanx_test?schema=public
+      APP_ORIGIN: http://localhost:3000
+      NEXT_PUBLIC_USE_MOCK_API: "false"
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck (incl. compile-time API type contracts)
+        run: npm run typecheck
+
+      - name: API docs / OpenAPI / route map are up to date
+        run: npm run api:check
+
+      - name: Unit tests (mock API conformance + contract drift)
+        run: npm run test:unit
+
+      - name: Contract tests (route handlers vs contracts, real Postgres)
+        run: npm run test:contract
+
+      - name: Build
+        run: npm run build
