@@ -38,8 +38,36 @@ export function getApiBaseUrl(): string {
   if (/^https?:\/\//.test(configured)) return configured;
   if (typeof window !== "undefined") return configured; // relative URL is fine in the browser
   // Server side (Server Components, route handlers): fetch needs an absolute URL.
-  const origin = (process.env.API_INTERNAL_ORIGIN || `http://localhost:${process.env.PORT || 3000}`).replace(/\/+$/, "");
-  return origin + configured;
+  return serverOrigin().replace(/\/+$/, "") + configured;
+}
+
+/**
+ * Origin the server uses to call its own API:
+ *   1. API_INTERNAL_ORIGIN, if set
+ *   2. on Vercel production: the stable production domain
+ *   3. on Vercel previews: this deployment's URL
+ *   4. local: http://localhost:<PORT>
+ */
+function serverOrigin(): string {
+  if (process.env.API_INTERNAL_ORIGIN) return process.env.API_INTERNAL_ORIGIN;
+  if (process.env.VERCEL_ENV === "production" && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return `http://localhost:${process.env.PORT || 3000}`;
+}
+
+/**
+ * Server-to-self requests on protected Vercel preview deployments need the
+ * "Protection Bypass for Automation" secret. Only sent when calling our own
+ * deployment (relative API base URL), never to an external API host.
+ */
+function serverOnlyHeaders(): Record<string, string> {
+  if (typeof window !== "undefined") return {};
+  const secret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL || "/api/v1";
+  if (!secret || /^https?:\/\//.test(configured)) return {};
+  return { "x-vercel-protection-bypass": secret };
 }
 
 // ─── Errors ─────────────────────────────────────────────────────────────────
@@ -161,7 +189,7 @@ export async function apiRequest<Op extends OperationId>(
     })) as ResponseOf<Op>;
   }
 
-  const headers: Record<string, string> = { Accept: "application/json", ...options.headers };
+  const headers: Record<string, string> = { Accept: "application/json", ...serverOnlyHeaders(), ...options.headers };
   let body: BodyInit | undefined;
   if (args.body !== undefined) {
     headers["Content-Type"] = "application/json";

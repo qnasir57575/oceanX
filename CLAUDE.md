@@ -37,7 +37,10 @@ npm run test:contract       # real route handlers vs contracts on oceanx_test (n
 npm run api:generate        # regenerate openapi.yaml, docs sections, routes.generated.ts
 npm run api:check           # CI drift gate: fails if generated artifacts are stale
 npm run build
+npm run vercel-build        # Vercel build command: migrations (production only) + next build
 ```
+
+Deployment: Vercel (region `bom1`) + Neon Postgres — see `docs/DEPLOYMENT.md`. Pushing/merging to `main` deploys production. Never run `db:seed` against a database with real data (it wipes all tables).
 
 ## Architecture (API-first)
 

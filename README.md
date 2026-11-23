@@ -10,6 +10,7 @@ One Next.js 16 application: the public website, the admin/contributor workspace 
 | Know what an endpoint does / returns / requires | [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) (single source of truth) |
 | Test the API with curl / Postman | [`docs/API_TESTING.md`](docs/API_TESTING.md) · [`docs/openapi.yaml`](docs/openapi.yaml) |
 | Change the API | [`CLAUDE.md`](CLAUDE.md) → “API contract rules” |
+| Deploy to Vercel | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) |
 
 ## Quick start
 
