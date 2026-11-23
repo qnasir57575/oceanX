@@ -44,6 +44,7 @@ export function ErrorState({
   action,
   className,
   compact = false,
+  headingLevel: Heading = "h3",
 }: {
   title: string;
   message: string;
@@ -52,6 +53,7 @@ export function ErrorState({
   action?: React.ReactNode;
   className?: string;
   compact?: boolean;
+  headingLevel?: "h1" | "h2" | "h3";
 }) {
   return (
     <div
@@ -65,7 +67,7 @@ export function ErrorState({
       <span className="mb-4 inline-flex size-12 items-center justify-center rounded-full bg-danger-bg text-danger">
         <Icon name="alert" size={24} />
       </span>
-      <h3 className="font-serif text-lg font-semibold text-ink">{title}</h3>
+      <Heading className="font-serif text-lg font-semibold text-ink">{title}</Heading>
       <p className="mt-2 max-w-md text-ink-muted">{message}</p>
       {reference ? (
         <p className="mt-2 text-xs text-ink-muted">

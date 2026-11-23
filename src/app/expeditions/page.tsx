@@ -138,7 +138,7 @@ async function ExpeditionResults({ sp, query }: { sp: RawSearchParams; query: Li
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
           {data.map((e, i) => (
             <li key={e.id}>
-              <ExpeditionCard expedition={e} priority={i < 3} />
+              <ExpeditionCard expedition={e} priority={i < 3} headingLevel="h2" />
             </li>
           ))}
         </ul>

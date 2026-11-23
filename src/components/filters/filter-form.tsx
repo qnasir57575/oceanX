@@ -73,7 +73,8 @@ export function FilterForm({
           apply(e.currentTarget);
         }}
         onChange={(e) => {
-          if (e.target instanceof HTMLSelectElement) apply(e.currentTarget);
+          const t = e.target;
+          if (t instanceof HTMLSelectElement || (t instanceof HTMLInputElement && t.type === "checkbox")) apply(e.currentTarget);
         }}
         className={cn(
           "mt-3 space-y-5 rounded-lg border border-line bg-surface p-5 lg:mt-0 lg:block",

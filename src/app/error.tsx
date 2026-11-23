@@ -18,6 +18,7 @@ export default function Error({ error, retry }: { error: unknown; retry: () => v
     <Container className="flex flex-1 flex-col justify-center py-16">
       <title>Something went wrong · OceanX</title>
       <ErrorState
+        headingLevel="h1"
         title={d.title}
         message={d.message}
         reference={d.reference}
