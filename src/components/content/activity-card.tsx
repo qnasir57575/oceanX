@@ -35,14 +35,16 @@ export function ActivityCard({
   activity: a,
   headingLevel = "h3",
   withImage = true,
+  priority = false,
 }: {
   activity: ActivitySummary;
   headingLevel?: "h2" | "h3" | "h4";
   withImage?: boolean;
+  priority?: boolean;
 }) {
   return (
     <CardShell>
-      {withImage && a.coverImage ? <ApiImageCover image={a.coverImage} /> : null}
+      {withImage && a.coverImage ? <ApiImageCover image={a.coverImage} priority={priority} /> : null}
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div>
           <ActivityTypeBadge type={a.type} />

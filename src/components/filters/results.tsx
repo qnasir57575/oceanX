@@ -48,10 +48,13 @@ export function ActiveFilters({
   filters,
   action,
   searchParams,
+  clearHref = action,
 }: {
   filters: ActiveFilter[];
   action: string;
   searchParams: RawSearchParams;
+  /** Where "Clear all" goes (defaults to the bare list page). */
+  clearHref?: string;
 }) {
   if (filters.length === 0) return null;
   return (
@@ -73,7 +76,7 @@ export function ActiveFilters({
         ))}
       </ul>
       {filters.length > 1 ? (
-        <Link href={action} scroll={false} className="text-sm font-medium text-glacier-700 underline-offset-2 hover:underline">
+        <Link href={clearHref} scroll={false} className="text-sm font-medium text-glacier-700 underline-offset-2 hover:underline">
           Clear all
         </Link>
       ) : null}

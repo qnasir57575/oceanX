@@ -39,6 +39,24 @@ export function DateTime({
   );
 }
 
+/** Event time range; the end shows only the time when it's on the same day. */
+export function DateTimeRange({ start, end, className }: { start: string; end: string | null; className?: string }) {
+  const client = useIsClient();
+  const locale = client ? undefined : SERVER_LOCALE;
+  const tz = client ? undefined : SERVER_TZ;
+  const a = formatDate(start, "dateTime", locale, tz);
+  let text = a;
+  if (end) {
+    const sameDay = formatDate(start, "medium", locale, tz) === formatDate(end, "medium", locale, tz);
+    text = `${a} – ${sameDay ? formatDate(end, "time", locale, tz) : formatDate(end, "dateTime", locale, tz)}`;
+  }
+  return (
+    <time dateTime={start} className={className} suppressHydrationWarning>
+      {text}
+    </time>
+  );
+}
+
 export function DateRange({
   start,
   end,
