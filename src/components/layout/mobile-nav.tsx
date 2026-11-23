@@ -51,7 +51,7 @@ export function MobileNav() {
         className="absolute inset-x-0 top-full z-40 max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-white/10 bg-polar-950 shadow-xl"
       >
         <div className="space-y-6 px-4 py-5 sm:px-6">
-          <SearchBox onNavigate={close} className="md:hidden" />
+          <SearchBox onNavigate={close} className="md:hidden" formLabel="Site search" />
           <nav aria-label="Main">
             <ul className="space-y-1">
               {PRIMARY_NAV.map((item) => (

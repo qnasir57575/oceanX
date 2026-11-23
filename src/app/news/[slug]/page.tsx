@@ -54,22 +54,22 @@ async function ActivityDetail({ params }: { params: Promise<{ slug: string }> })
             {isEvent ? (
               <section aria-label="Event details" className="rounded-lg border border-glacier-100 bg-glacier-50 p-5">
                 <dl className="grid gap-4 sm:grid-cols-2">
-                  <div className="flex gap-3">
-                    <Icon name="calendar" size={22} className="mt-0.5 shrink-0 text-glacier-800" />
-                    <div>
-                      <dt className="text-sm font-semibold text-glacier-800">When</dt>
-                      <dd className="text-ink">
-                        <DateTimeRange start={a.startsAt!} end={a.endsAt} />
-                      </dd>
-                    </div>
+                  <div className="relative pl-9">
+                    <dt className="text-sm font-semibold text-glacier-800">
+                      <Icon name="calendar" size={22} className="absolute top-0.5 left-0 text-glacier-800" />
+                      When
+                    </dt>
+                    <dd className="text-ink">
+                      <DateTimeRange start={a.startsAt!} end={a.endsAt} />
+                    </dd>
                   </div>
                   {a.location || a.isOnline ? (
-                    <div className="flex gap-3">
-                      <Icon name={a.isOnline ? "globe" : "map-pin"} size={22} className="mt-0.5 shrink-0 text-glacier-800" />
-                      <div>
-                        <dt className="text-sm font-semibold text-glacier-800">Where</dt>
-                        <dd className="text-ink">{a.location ?? "Online"}</dd>
-                      </div>
+                    <div className="relative pl-9">
+                      <dt className="text-sm font-semibold text-glacier-800">
+                        <Icon name={a.isOnline ? "globe" : "map-pin"} size={22} className="absolute top-0.5 left-0 text-glacier-800" />
+                        Where
+                      </dt>
+                      <dd className="text-ink">{a.location ?? "Online"}</dd>
                     </div>
                   ) : null}
                 </dl>

@@ -17,7 +17,7 @@ import { ActiveFilters, FiltersSkeleton, ListLayout, ResultsToolbar, type Active
 import { DatasetCard } from "@/components/content/dataset-card";
 import { countActiveFilters, parseQuery, toURLSearchParams, type RawSearchParams } from "@/lib/ui/query";
 import { enumOptions, sortOptions } from "@/lib/ui/options";
-import { categoryName, loadCategoryOptions } from "@/lib/ui/data";
+import { categoryName, expeditionTitle, loadCategoryOptions } from "@/lib/ui/data";
 import { formatDate } from "@/lib/format/date";
 import { ACCESS_LEVEL_LABELS, label, REGION_LABELS } from "@/lib/format/labels";
 
@@ -116,7 +116,7 @@ async function Results({ sp, query }: { sp: RawSearchParams; query: ListDatasets
     query.format && { key: "format", label: `Format: ${query.format}` },
     query.category && { key: "category", label: `Topic: ${await categoryName(query.category)}` },
     query.keyword && { key: "keyword", label: `Keyword: ${query.keyword}` },
-    query.expeditionId && { key: "expeditionId", label: "From one expedition" },
+    query.expeditionId && { key: "expeditionId", label: `Expedition: ${(await expeditionTitle(query.expeditionId)) ?? "selected expedition"}` },
     query.from && { key: "from", label: `From ${formatDate(query.from, "medium", "en-IN")}` },
     query.to && { key: "to", label: `To ${formatDate(query.to, "medium", "en-IN")}` },
   ].filter((f): f is ActiveFilter => Boolean(f));

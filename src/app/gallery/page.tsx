@@ -17,7 +17,7 @@ import { ActiveFilters, FiltersSkeleton, ListLayout, ResultsToolbar, type Active
 import { MediaTile } from "@/components/content/media-tile";
 import { countActiveFilters, parseQuery, toURLSearchParams, type RawSearchParams } from "@/lib/ui/query";
 import { enumOptions, sortOptions } from "@/lib/ui/options";
-import { categoryName, loadCategoryOptions } from "@/lib/ui/data";
+import { categoryName, expeditionTitle, loadCategoryOptions } from "@/lib/ui/data";
 import { label, MEDIA_TYPE_LABELS, REGION_LABELS } from "@/lib/format/labels";
 
 export const metadata: Metadata = {
@@ -108,7 +108,7 @@ async function Results({ sp, query }: { sp: RawSearchParams; query: ListMediaQue
     query.category && { key: "category", label: `Topic: ${await categoryName(query.category)}` },
     query.keyword && { key: "keyword", label: `Keyword: ${query.keyword}` },
     query.featured && { key: "featured", label: "Featured" },
-    query.expeditionId && { key: "expeditionId", label: "From one expedition" },
+    query.expeditionId && { key: "expeditionId", label: `Expedition: ${(await expeditionTitle(query.expeditionId)) ?? "selected expedition"}` },
   ].filter((f): f is ActiveFilter => Boolean(f));
 
   return (

@@ -28,6 +28,7 @@ function SectionErrorFallback({ subject, compact, className }: SectionBoundaryPr
       reference={d.reference}
       debug={d.debug}
       compact={compact}
+      headingLevel={compact ? "h3" : "h2"}
       className={className}
       action={
         d.retryable ? (

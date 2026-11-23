@@ -39,7 +39,7 @@ export function SiteHeader() {
           </Suspense>
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <SearchBox className="hidden w-72 md:block xl:w-60 2xl:w-80" />
+          <SearchBox className="hidden w-72 md:block xl:w-60 2xl:w-80" formLabel="Site search" />
           <div className="hidden xl:block">
             <UserMenu />
           </div>

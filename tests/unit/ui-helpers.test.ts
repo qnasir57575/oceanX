@@ -12,6 +12,8 @@ import { pageWindow } from "@/lib/ui/pagination";
 import { formatDate, formatDateRange } from "@/lib/format/date";
 import { formatBytes, formatCoordinates, formatDuration, formatDurationLong, plural } from "@/lib/format/number";
 import { humanize, label, REGION_LABELS } from "@/lib/format/labels";
+import { toFormError } from "@/lib/ui/form-errors";
+import { ApiRequestError } from "@/lib/api-client";
 
 describe("parseQuery", () => {
   it("coerces and validates URL params with the contract schema", () => {
@@ -121,5 +123,28 @@ describe("formatters", () => {
     expect(label(REGION_LABELS, "SOUTHERN_OCEAN")).toBe("Southern Ocean");
     expect(label(REGION_LABELS, "NEW_REGION")).toBe("New region");
     expect(humanize("PRESS_RELEASE")).toBe("Press release");
+  });
+});
+
+describe("toFormError", () => {
+  const apiError = (code: string, status: number, details?: Record<string, unknown>, message = "Server message") =>
+    new ApiRequestError({ status, code: code as never, message, operationId: "login", details: details as never, requestId: "req_test" });
+
+  it("maps 422 field errors and keeps the first message per field", () => {
+    const e = toFormError(apiError("VALIDATION_ERROR", 422, { fieldErrors: { email: ["Invalid email", "x"] }, formErrors: [] }));
+    expect(e.fieldErrors).toEqual({ email: "Invalid email" });
+    expect(e.message).toBe("Please correct the highlighted fields.");
+  });
+
+  it("prefers reason-specific, then code-specific overrides", () => {
+    const taken = toFormError(apiError("CONFLICT", 409, { reason: "EMAIL_TAKEN" }), { "reason:EMAIL_TAKEN": "Taken", CONFLICT: "Conflict" });
+    expect(taken).toMatchObject({ message: "Taken", reason: "EMAIL_TAKEN" });
+    expect(toFormError(apiError("UNAUTHENTICATED", 401), { UNAUTHENTICATED: "Wrong password" }).message).toBe("Wrong password");
+  });
+
+  it("explains rate limits and server errors with a reference", () => {
+    expect(toFormError(apiError("RATE_LIMITED", 429, { retryAfterSeconds: 30 })).message).toContain("30 seconds");
+    expect(toFormError(apiError("INTERNAL_ERROR", 500)).message).toContain("req_test");
+    expect(toFormError(new Error("boom")).message).toBe("Something went wrong. Please try again.");
   });
 });
