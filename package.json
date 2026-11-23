@@ -54,6 +54,6 @@
   },
   "description": "SIH26063 — Integrated Polar Science Outreach, Knowledge Repository and Media Dissemination Portal",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   }
 }
