@@ -1,21 +1,33 @@
 # Deployment (Vercel + Neon Postgres)
 
-The app (frontend + `/api/v1` backend) deploys as one Vercel project. The database is a hosted PostgreSQL (Neon, added through Vercel's Storage/Marketplace). Region: **Mumbai** — Vercel functions run in `bom1` (`vercel.json`); create the database in the same region.
+The app (frontend + `/api/v1` backend) deploys as one Vercel project. The database is a hosted PostgreSQL on **Neon**. Region: **Singapore** — Vercel functions run in `sin1` (`vercel.json`) next to the Neon database in `aws-ap-southeast-1` (Neon has no India region; Singapore is the closest, and functions must sit next to the database because each page makes several queries).
 
-## One-time setup (≈10 minutes, done by the repo owner)
+## Current setup
+
+| | |
+|---|---|
+| Vercel project | `oceanx` (Hobby), production branch `main`, Git-connected to `qnasir57575/oceanX` |
+| Neon project | `oceanx` (`bitter-frog-64021268`), Postgres 17, `aws-ap-southeast-1`; branch `main` = production, branch `preview` = Preview deployments |
+| Production env vars | `DATABASE_URL` (pooled, `sslmode=verify-full`), `DATABASE_URL_UNPOOLED` (direct, `sslmode=require`), `APP_ORIGIN` |
+
+Connection strings are never committed. Get them with `npx neonctl connection-string --project-id bitter-frog-64021268 [--pooled]` or from the Neon console.
+
+> Use `sslmode=verify-full` for the pooled runtime URL (node-postgres) and `sslmode=require` for the direct URL (the Prisma migration engine does not accept `verify-full`).
+
+## Recreating the setup from scratch (≈10 minutes)
 
 1. **Import the project** — https://vercel.com/new → *Import Git Repository* → `qnasir57575/oceanX`.
    - Framework preset: **Next.js** (auto-detected). Leave Build Command, Output and Install settings at their defaults — `vercel.json` sets the build command to `npm run vercel-build`.
    - Production branch: `main`.
    - **Do not add `NEXT_PUBLIC_USE_MOCK_API`** (production builds refuse it).
    - You can click *Deploy* now; the first build will stop with “DATABASE_URL is not set” until step 2 is done. That's expected.
-2. **Add the database** — Project → *Storage* → *Create Database* → **Neon (Serverless Postgres)** → region **AWS Asia Pacific (Mumbai)** → connect it to the project for **Production** (and Preview/Development if you like). This sets `DATABASE_URL` (pooled) and `DATABASE_URL_UNPOOLED` (direct) automatically.
+2. **Add the database** — either create a Neon project in **AWS Asia Pacific (Singapore)** and add its pooled/direct connection strings as `DATABASE_URL` / `DATABASE_URL_UNPOOLED` (what this project does), or use Vercel → *Storage* → *Create Database* → **Neon** in the Singapore region, which sets both variables automatically.
 3. **Environment variables** — Project → *Settings* → *Environment Variables* (Production):
 
    | Name | Value | Required |
    |---|---|---|
-   | `DATABASE_URL` | set by the Neon integration | yes |
-   | `DATABASE_URL_UNPOOLED` | set by the Neon integration (used for migrations) | yes |
+   | `DATABASE_URL` | Neon **pooled** connection string, with `sslmode=verify-full` | yes |
+   | `DATABASE_URL_UNPOOLED` | Neon **direct** connection string, with `sslmode=require` (used for migrations) | yes |
    | `APP_ORIGIN` | `https://<your-project>.vercel.app` (or your custom domain) | recommended |
    | `SESSION_TTL_DAYS` | `14` | optional |
 

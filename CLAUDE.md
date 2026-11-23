@@ -40,7 +40,7 @@ npm run build
 npm run vercel-build        # Vercel build command: migrations (production only) + next build
 ```
 
-Deployment: Vercel (region `bom1`) + Neon Postgres — see `docs/DEPLOYMENT.md`. Pushing/merging to `main` deploys production. Never run `db:seed` against a database with real data (it wipes all tables).
+Deployment: Vercel (region `sin1`, Singapore) + Neon Postgres (`aws-ap-southeast-1`) — see `docs/DEPLOYMENT.md`. Pushing/merging to `main` deploys production. Never run `db:seed` against a database with real data (it wipes all tables).
 
 ## Architecture (API-first)
 
