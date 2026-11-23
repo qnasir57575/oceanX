@@ -117,3 +117,38 @@ describe("live mode", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
+
+describe("server-side origin on Vercel", () => {
+  const okFetch = () => vi.fn(async () => new Response(JSON.stringify({ success: true, data: {} })));
+  const base = { NODE_ENV: "production", NEXT_PUBLIC_USE_MOCK_API: "false", NEXT_PUBLIC_API_BASE_URL: "", API_INTERNAL_ORIGIN: "" };
+
+  it("uses the production domain in Vercel production", async () => {
+    const { client } = await loadClient({ ...base, VERCEL_ENV: "production", VERCEL_PROJECT_PRODUCTION_URL: "oceanx.vercel.app", VERCEL_URL: "oceanx-abc123.vercel.app" });
+    expect(client.getApiBaseUrl()).toBe("https://oceanx.vercel.app/api/v1");
+  });
+
+  it("uses the deployment URL on previews and sends the protection-bypass secret", async () => {
+    const fetchSpy = okFetch();
+    vi.stubGlobal("fetch", fetchSpy);
+    const { api, client } = await loadClient({ ...base, VERCEL_ENV: "preview", VERCEL_URL: "oceanx-git-x.vercel.app", VERCEL_AUTOMATION_BYPASS_SECRET: "s3cret" });
+    expect(client.getApiBaseUrl()).toBe("https://oceanx-git-x.vercel.app/api/v1");
+    await api.getPortalStats();
+    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
+    expect((init.headers as Record<string, string>)["x-vercel-protection-bypass"]).toBe("s3cret");
+  });
+
+  it("never sends the bypass secret to an external API host", async () => {
+    const fetchSpy = okFetch();
+    vi.stubGlobal("fetch", fetchSpy);
+    const { api } = await loadClient({ ...base, NEXT_PUBLIC_API_BASE_URL: "https://api.example.org/api/v1", VERCEL_AUTOMATION_BYPASS_SECRET: "s3cret" });
+    await api.getPortalStats();
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://api.example.org/api/v1/stats");
+    expect((init.headers as Record<string, string>)["x-vercel-protection-bypass"]).toBeUndefined();
+  });
+
+  it("API_INTERNAL_ORIGIN overrides Vercel detection", async () => {
+    const { client } = await loadClient({ ...base, API_INTERNAL_ORIGIN: "https://portal.example.org", VERCEL_ENV: "production", VERCEL_PROJECT_PRODUCTION_URL: "oceanx.vercel.app" });
+    expect(client.getApiBaseUrl()).toBe("https://portal.example.org/api/v1");
+  });
+});

@@ -8,6 +8,9 @@ export default defineConfig({
     seed: "tsx prisma/seed.ts",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // The Prisma CLI (migrate) needs a direct, non-pooled connection. Hosted
+    // Postgres (e.g. Neon via Vercel) exposes it as DATABASE_URL_UNPOOLED; the
+    // app itself uses the pooled DATABASE_URL at runtime (src/server/db.ts).
+    url: process.env["DIRECT_DATABASE_URL"] ?? process.env["DATABASE_URL_UNPOOLED"] ?? process.env["DATABASE_URL"],
   },
 });
