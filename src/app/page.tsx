@@ -112,7 +112,13 @@ async function HomeSections() {
       ) : null}
 
       {latestPublications.length > 0 || latestNews.length > 0 ? (
-        <Container className="grid gap-12 pt-14 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <Container
+          className={
+            latestPublications.length > 0 && latestNews.length > 0
+              ? "grid gap-12 pt-14 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
+              : "pt-14"
+          }
+        >
           {latestPublications.length > 0 ? (
             <section>
               <SectionHeading title="Latest research" href="/research" linkLabel="All publications" />
